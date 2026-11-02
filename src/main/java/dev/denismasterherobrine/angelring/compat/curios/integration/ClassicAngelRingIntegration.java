@@ -34,13 +34,29 @@ public class ClassicAngelRingIntegration {
         InterModComms.sendTo("curios", SlotTypeMessage.REGISTER_TYPE, () -> new SlotTypeMessage.Builder("angelring").icon(new ResourceLocation("curios:slot/empty_ring_slot")).build());
     }
 
-    public static ICapabilityProvider initCapabilities() {
+    /**
+     * Fix for GTCEu 8.0.0 compatibility (StackOverflowError):
+     *
+     * The original code constructed a NEW ItemStack inside the anonymous ICurio class:
+     *   final ItemStack stack = new ItemStack(ItemRegistry.ANGEL_RING.get());
+     *
+     * GTCEu 8.0.0 injects a freshness-tracking hook into the ItemStack constructor/init path
+     * via a Mixin (gtceu$updateFreshness / handler$cik000$gtceu$injectedFreshnessUpdate).
+     * That hook calls getCapability() on the new stack, which triggers initCapabilities()
+     * again on the Angel Ring item, which creates ANOTHER new ItemStack, causing infinite
+     * recursion and a StackOverflowError before the server finishes loading.
+     *
+     * Fix: accept the ItemStack that Forge already provides to initCapabilities() and pass
+     * it through, so no second ItemStack is ever constructed during capability initialization.
+     * The ICurio implementation returns that stack from getStack(), satisfying the Curios API.
+     */
+    public static ICapabilityProvider initCapabilities(final ItemStack existingStack) {
         ICurio curio = new AbstractRingCurio(ItemRegistry.ANGEL_RING.get().asItem()) {
-            final ItemStack stack = new ItemStack(ItemRegistry.ANGEL_RING.get()); // I believe it should work since there is no additional data by default.
 
             @Override
             public ItemStack getStack() {
-                return stack;
+                // Return the stack Forge gave us — no new ItemStack construction needed.
+                return existingStack;
             }
 
             @Override

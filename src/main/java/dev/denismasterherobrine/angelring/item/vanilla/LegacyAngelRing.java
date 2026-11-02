@@ -39,7 +39,10 @@ public class LegacyAngelRing extends Item {
     @Override
     public ICapabilityProvider initCapabilities(final ItemStack stack, CompoundTag unused) {
         if (ExternalMods.CURIOS.isLoaded()) {
-            return ClassicAngelRingIntegration.initCapabilities();
+            // Pass the existing stack so ClassicAngelRingIntegration does NOT construct
+            // a new ItemStack internally — which would trigger GTCEu's freshness hook
+            // and cause infinite recursion (StackOverflowError). See ClassicAngelRingIntegration.
+            return ClassicAngelRingIntegration.initCapabilities(stack);
         }
         return super.initCapabilities(stack, unused);
     }
